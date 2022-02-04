@@ -45,14 +45,14 @@ var Disable_Weather = true;
 1. 断开 Kindle。
 1. 打开 Kindle 网络浏览器并输入以下 URL：
 ``
-文件：///mnt/us/calendar/index.htm
+file：///mnt/us/calendar/index.htm
 ``
 
 * 或者，您也可以在网络服务器上上传文件并从 Kindle 打开网络服务器的地址。
 * 通过禁用天气预报离线模式以更省电：
 编辑 index.htm 并更改
 ``
-var Disable_Weather = 假；
+var Disable_Weather = false；
 ``
 到
 ``
