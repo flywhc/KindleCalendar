@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh_CN">
+
+<head>
+    <title>Calendar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="cleartype" content="on">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script src="jquery-2.2.4.min.js"></script>
+    <script src="accounts.js"></script>
+    <script src="lunarcalendar.js"></script>
+    <script>
+        //  ==== Constants ====
+        // disable weather to work offline and save battery
+        var Disable_Weather = false;
+        // Kindle Javascript doesn't support timezone so we have to manually add timezone offset.
+        var Timezone_Offset = 8;
+
+        // Constants for Weather API: register an free account on https://dev.qweather.com/
+        var Weather_Realtime_Url = "https://devapi.qweather.com/v7/weather/now?";
+        var Weather_Forecast_Hour_Url = "https://devapi.qweather.com/v7/weather/24h?"
+        var Weather_Forecast_Day_Url = "https://devapi.qweather.com/v7/weather/3d?"
+
+        // update weather every 30 minutes
+        var Weather_Updte_Interval = 30 * 60 * 1000;
+
+        // Global Variables
+        var lastDateUpdateTime = null;
+        var lastWeatherUpdateTime = null;
+
+        // event handler when document loaded
+        $(document).ready(function () {
+            UpdateContentPerMinute();
+            positionFooter();
+            $(window).scroll(positionFooter).resize(positionFooter);
+        });
+
+        // Update page contents every minute
+        function UpdateContentPerMinute() {
+            log("UpdateContentPerMinute");
+            var now = new Date();
+
+            // manually apply timezone offset.
+            if (now.getTimezoneOffset() == 0) {
+                now.setHours(now.getHours() + Timezone_Offset);
+            }
+
+            // Time area
+            var timeString = padding0(now.getHours(), 2) + ':' + padding0(now.getMinutes(), 2);
+            $("#timeBlock").text(timeString);
+
+            // update Date area and poetry every day
+            if (lastDateUpdateTime == null || now.getDay() != lastDateUpdateTime.getDay()) {
+                setDateArea(now);
+                lastDateUpdateTime = now;
+            }
+
+            // update weather area by Weather_Updte_Interval
+            if (lastWeatherUpdateTime == null || (now - lastWeatherUpdateTime) > Weather_Updte_Interval) {
+                setWeather();
+                lastWeatherUpdateTime = now;
+            }
+
+            // set timer to the next minute
+            now = new Date();
+            var nextTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+            nextTime.setMinutes(nextTime.getMinutes() + 1);
+            var diff = nextTime - now;
+            setTimeout(UpdateContentPerMinute, diff);
+        };
+
+        function getDayName(d) {
+            return "星期" + "日一二三四五六".charAt(d);
+        }
+
+        function setDateArea(now) {
+            log("setDateArea");
+            // China Date
+            var dateString = now.toLocaleDateString("zh-CN", { dateStyle: 'full' });
+            var weekday = getDayName(now.getDay());
+            if (dateString.indexOf(weekday) < 0) {
+                dateString += weekday;
+            }
+            $("#dateBlock").text(dateString);
+
+            // Chinese Lunar Calendar
+            lDObj = new Lunar(now) //农历
+            lY = lDObj.year //农历年
+            lM = lDObj.month //农历月
+            lD = lDObj.day //农历日
+            lL = lDObj.isLeap //农历是否闰月
+            lX = lL ? leapDays(lY) : monthDays(lY, lM) //农历当月最後一天
+
+            // Chinese Lunar Calendar JSON.stringify( lDObj);// 
+            var chineseDateString = "甲乙丙丁戊己庚辛壬癸".charAt((lY - 4) % 10) + "子丑寅卯辰巳午未申酉戌亥".charAt((lY - 4) % 12) + "年"
+                + (lDObj.isLeap ? "闰" : "") + "一二三四五六七八九寒冬腊".charAt(lM - 1) + "月" + cDay(lD);
+            $("#chineseDateBlock").text(chineseDateString);
+            poetryPage.location.reload();
+        }
+
+        function setWeather() {
+            log("setWeather");
+
+            // for testing
+            if (Disable_Weather) {
+                $("#weatherNowBlock").html("<i class='qi-101'></i>当前天气：晴 温度1℃ 体感温度1℃ 风向西风 风力4级");
+                $("#weatherInfoBlock").text("观测时间: " + new Date());
+                return;
+            }
+
+            // Current Weather
+            $.get(Weather_Realtime_Url + "key=" + weather_key + "&location=" + weather_location + "&lang=" + weather_lang + "&unit" + weather_unit,
+                function (data, status) {
+                    if (status == "success" && data.code == "200") {
+                        var weather = "<i class='qi-" + data.now.icon + "'></i>"
+                            + " 当前天气" + data.now.text
+                            + " 温度" + data.now.temp + "℃"
+                            + " 体感温度" + data.now.feelsLike + "℃"
+                            + " 风向" + data.now.windDir
+                            + " 风力" + data.now.windScale + "级 <br/>"
+                            + " 湿度" + data.now.humidity + "%"
+                            + " 降水" + data.now.precip + "mm/h"
+                            + " 能见度" + data.now.vis + "km"
+                            ;
+                        $("#weatherNowBlock").html(weather);
+                        $("#weatherInfoBlock").text("观测时间: " + data.now.obsTime);
+                    }
+                    else {
+                        $("#weatherInfoBlock").text("数据: " + JSON.stringify(data) + "\n状态: " + status);
+                    }
+                    positionFooter();
+                });
+
+            // Daily Weather
+            $.get(Weather_Forecast_Day_Url + "key=" + weather_key + "&location=" + weather_location + "&lang=" + weather_lang + "&unit" + weather_unit,
+                function (data, status) {
+                    if (status == "success" && data.code == "200") {
+                        for (var i = 0; i < data.daily.length; i++) {
+                            dailyData = data.daily[i];
+                            var fxDateArray = dailyData.fxDate.split('-');
+                            var fxDate = new Date(fxDateArray[0], fxDateArray[1], fxDateArray[2]);
+                            $("#date" + i).html(fxDate.getMonth() + "月" + fxDate.getDate() + "日" + getDayName(fxDate.getDay()));
+                            $("#day" + i).html("<i class='qi-" + dailyData.iconDay + "'></i>"
+                                + dailyData.textDay + dailyData.tempMax + "℃"
+                            );
+                            $("#night" + i).html("<i class='qi-" + dailyData.iconNight + "'></i>"
+                                + dailyData.textNight + dailyData.tempMin + "℃"
+                            );
+                        };
+                    }
+                    else {
+                        $("#weatherInfoBlock").text("数据: " + JSON.stringify(data) + "\n状态: " + status);
+                    }
+                });
+            
+
+        }
+
+        //定义positionFooter function 
+        function positionFooter() {
+            var offsetHeight = document.getElementById('container').offsetHeight;
+            var screenHeight = screen.height;
+
+            if (offsetHeight < screenHeight) {
+                document.getElementById("footer").style.position = "fixed";
+                document.getElementById("footer").style.bottom = "0";
+                document.getElementById("footer").style.left = "0";
+                document.getElementById("footer").style.right = "0";
+            }
+        }
+
+        // fill 0 before digits for fixed length numbers
+        function padding0(num, length) {
+            for (var len = (num + "").length; len < length; len = num.length) {
+                num = "0" + num;
+            }
+            return num;
+        }
+
+        function log(s) {
+            console.log(new Date() + " " + s);
+        }
+
+    </script>
+    <link rel="stylesheet" href="qweather-icons.css">
+    <link rel="stylesheet" href="fonts.css">
+    <style>
+        /*
+Kindle uses NetFront web browser
+Kindle built-in fonts:
+宋体	STSong	font-family: STSong, serif;
+黑体	STHeiti	font-family: STHeiti, san-serif;
+楷体	STKai	font-family: STKai, serif;
+圆体	STYuan	font-family: STYuan, san-serif;
+Baskerville	Baskerville	font-family: Baskerville, serif;
+Helvetica	Helvetica	font-family: Helvetica, san-serif;
+Palatino	Palatino	font-family: Palatino, serif;
+Futura	Futura	font-family: Futura, serif;
+Caecilia	Caecilia Regular	font-family: "Caecilia Regular", serif;
+Caecilia Condensed	condensed	font-family: condensed, serif;
+Amazon Ember	Amazon Ember	font-family: "Amazon Ember", serif;
+Bookerly	Bookerly	font-family: Bookerly, serif;
+OpenDyslexic	OpenDyslexic	font-family: OpenDyslexic, serif;
+
+Source of fonts:
+chesstype.chesstype.ttf:
+https://www.1001fonts.com/led-fonts.html
+
+FZXiaKTJF.ttf:
+https://www.foundertype.com/index.php/FindFont/index.html?hot=118
+    */
+
+        @font-face {
+            font-family: 'chesstype';
+            src: url('chesstype.chesstype.ttf');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        body {
+            text-align: center;
+        }
+
+        #dateBlock {
+            font-size: 52px;
+        }
+
+        #chineseDateBlock {
+            font-size: 52px;
+        }
+
+        #timeBlock {
+            margin: 10px;
+            font-size: 260px;
+            font-family: "chesstype";
+        }
+
+        #weatherNowBlock {
+            font-size: 36px;
+        }
+        td {
+            font-size: 36px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id='dateBlock'></div>
+        <div id='chineseDateBlock'></div>
+        <div id='timeBlock'></div>
+        <iframe name='poetryPage' src="poetry.htm" width="900" height="500" frameborder="0">
+        </iframe>
+        <table align="center" cellpadding="10">
+            <tr>
+                <td><div id='date0'>-</div></td>
+                <td><div id='date1'>-</div></td>
+                <td><div id='date2'>-</div></td>
+            </tr>
+            <tr>
+                <td><div id='day0'></div></td>
+                <td><div id='day1'></div></td>
+                <td><div id='day2'></div></td>
+            </tr>
+            <tr>
+                <td><div id='night0'></div></td>
+                <td><div id='night1'></div></td>
+                <td><div id='night2'></div></td>
+            </tr>
+        </table>
+
+    </div>
+    <div id="footer">
+        <hr />
+        <div id='weatherNowBlock'></div>
+        <div id='weatherInfoBlock'></div>
+    </div>
+</body>
+
+</html>
