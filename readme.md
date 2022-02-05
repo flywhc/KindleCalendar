@@ -25,7 +25,7 @@
 file:///mnt/us/calendar/index.htm
 ``
 
-* Alternatively, you may also upload files on a web server and open the address to the web server from your Kindle.
+* Some version of Kindle doesn't support 'file://' address as above. In this case, you may also upload files on a web server and open the address to the web server from your Kindle.
 * Offline Mode by Disable weather forecasting for power-saving:
 Edit index.htm and change
 ``
@@ -48,7 +48,7 @@ var Disable_Weather = true;
 file：///mnt/us/calendar/index.htm
 ``
 
-* 或者，您也可以在网络服务器上上传文件并从 Kindle 打开网络服务器的地址。
+* 有些版本的Kindle无法打开上面这种 "file://"地址。因此，您也可以在网络服务器上上传文件并从 Kindle 打开网络服务器的地址。
 * 通过禁用天气预报离线模式以更省电：
 编辑 index.htm 并更改
 ``
