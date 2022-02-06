@@ -1,8 +1,38 @@
+/*
+Kindle uses NetFront web browser
+Kindle built-in fonts:
+宋体	STSong	font-family: STSong, serif;
+黑体	STHeiti	font-family: STHeiti, san-serif;
+楷体	STKai	font-family: STKai, serif;
+圆体	STYuan	font-family: STYuan, san-serif;
+Baskerville	Baskerville	font-family: Baskerville, serif;
+Helvetica	Helvetica	font-family: Helvetica, san-serif;
+Palatino	Palatino	font-family: Palatino, serif;
+Futura	Futura	font-family: Futura, serif;
+Caecilia	Caecilia Regular	font-family: "Caecilia Regular", serif;
+Caecilia Condensed	condensed	font-family: condensed, serif;
+Amazon Ember	Amazon Ember	font-family: "Amazon Ember", serif;
+Bookerly	Bookerly	font-family: Bookerly, serif;
+OpenDyslexic	OpenDyslexic	font-family: OpenDyslexic, serif;
 
+Source of fonts:
+chesstype.chesstype.ttf:
+https://www.1001fonts.com/led-fonts.html
+
+FZXiaKTJF.ttf:
+https://www.foundertype.com/index.php/FindFont/index.html?hot=118
+    */
 
 @font-face {
     font-family: 'fzxiaktjf';
     src: url('fzxiaktjf.ttf');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'chesstype';
+    src: url('chesstype.chesstype.ttf');
     font-weight: normal;
     font-style: normal;
 }

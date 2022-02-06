@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html lang="zh_CN">
-
+<!--
+* The MIT License (MIT)
+* Copyright (C) 2022 Jason Wang (https://github.com/flywhc/KindleCalendar)
+-->
 <head>
     <title>Calendar</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="cleartype" content="on">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script src="0.唐诗三百首.js"></script>
     <script src="jquery-2.2.4.min.js"></script>
     <script src="accounts.js"></script>
-    <script src="lunarcalendar.js"></script>
+    <script src="calendar-converter.js"></script>
     <script>
         //  ==== Constants ====
-        // disable weather to work offline and save battery
-        var Disable_Weather = false;
+        // Set to false to disable weather service for working offline and save battery
+        var isOnline = true;
         // Kindle Javascript doesn't support timezone so we have to manually add timezone offset.
         var Timezone_Offset = 8;
 
@@ -25,11 +29,29 @@
         var Weather_Updte_Interval = 30 * 60 * 1000;
 
         // Global Variables
+        var weather_key = qweather_key;
         var lastDateUpdateTime = null;
         var lastWeatherUpdateTime = null;
+        var onlineView;
+        var offlineView;
+
+        onerror = function (msg, url, line) {
+            alert("Error url:" + url + ", line:" + line + ", " + msg);
+        }
 
         // event handler when document loaded
         $(document).ready(function () {
+            onlineView = $("#dailyWeatherBlock").html();
+            setOfflineView();
+            // load weather key setting
+            if (localStorage["qweather_key"] != null) {
+                weather_key = localStorage["qweather_key"];
+            }
+            // first time running, prompt for weather key
+            if ((weather_key.indexOf("<") >= 0 || weather_key.length == 0) && localStorage["qweather_key"] == null) {
+                setWeatherKey();
+            }
+
             UpdateContentPerMinute();
             positionFooter();
             $(window).scroll(positionFooter).resize(positionFooter);
@@ -52,12 +74,13 @@
             // update Date area and poetry every day
             if (lastDateUpdateTime == null || now.getDay() != lastDateUpdateTime.getDay()) {
                 setDateArea(now);
+                setPoetryArea();
                 lastDateUpdateTime = now;
             }
 
             // update weather area by Weather_Updte_Interval
             if (lastWeatherUpdateTime == null || (now - lastWeatherUpdateTime) > Weather_Updte_Interval) {
-                setWeather();
+                setWeatherArea();
                 lastWeatherUpdateTime = now;
             }
 
@@ -84,30 +107,71 @@
             $("#dateBlock").text(dateString);
 
             // Chinese Lunar Calendar
-            lDObj = new Lunar(now) //农历
-            lY = lDObj.year //农历年
-            lM = lDObj.month //农历月
-            lD = lDObj.day //农历日
-            lL = lDObj.isLeap //农历是否闰月
-            lX = lL ? leapDays(lY) : monthDays(lY, lM) //农历当月最後一天
-
-            // Chinese Lunar Calendar JSON.stringify( lDObj);// 
-            var chineseDateString = "甲乙丙丁戊己庚辛壬癸".charAt((lY - 4) % 10) + "子丑寅卯辰巳午未申酉戌亥".charAt((lY - 4) % 12) + "年"
-                + (lDObj.isLeap ? "闰" : "") + "一二三四五六七八九寒冬腊".charAt(lM - 1) + "月" + cDay(lD);
+            var cc = new CalendarConverter;
+            var lunarDate = cc.solar2lunar(new Date(now));
+            var chineseDateString = lunarDate.cYear + "年" + (lunarDate.isLeap ? "闰" : "") + lunarDate.lunarMonth + "月" + lunarDate.lunarDay;
             $("#chineseDateBlock").text(chineseDateString);
-            poetryPage.location.reload();
         }
 
-        function setWeather() {
-            log("setWeather");
+        function setCalendarArea() {
+            switchOnline(false);
 
-            // for testing
-            if (Disable_Weather) {
-                $("#weatherNowBlock").html("<i class='qi-101'></i>当前天气：晴 温度1℃ 体感温度1℃ 风向西风 风力4级");
-                $("#weatherInfoBlock").text("观测时间: " + new Date());
-                return;
+            var now = new Date();
+            // manually apply timezone offset.
+            if (now.getTimezoneOffset() == 0) {
+                now.setHours(now.getHours() + Timezone_Offset);
             }
 
+            var firstDay = new Date(now);
+            var dayOfWeek = now.getDay();
+            if (dayOfWeek == 0) dayOfWeek = 7;
+            if (dayOfWeek != 1) {
+                firstDay.setDate(now.getDate() - dayOfWeek + 1);
+            }
+
+            for (var i = 1; i <= 7; i++) {
+                var thisDay = new Date(firstDay);
+                thisDay.setDate(firstDay.getDate() + (i - 1));
+                var prefix = "";
+                var suffix = "";
+                if (thisDay.getFullYear() == now.getFullYear() && thisDay.getMonth() == now.getMonth() && thisDay.getDate() == now.getDate()) {
+                    prefix = "<b>";
+                    suffix = "</b>";
+                }
+                $("#weekDay" + i).html(prefix + (thisDay.getMonth() + 1) + "月" + thisDay.getDate() + "日" + suffix);
+                // Chinese Lunar Calendar
+                var cc = new CalendarConverter;
+                var lunarDate = cc.solar2lunar(new Date(thisDay));
+                var chineseDateString = lunarDate.lunarMonth + "月" + lunarDate.lunarDay;
+                $("#weekLunarDay" + i).html(prefix + chineseDateString + suffix);
+            };
+        }
+
+        function setWeatherKey() {
+            var key = prompt("请输入Qweather key (免费注册申请：https://dev.qweather.com/)\n按取消键进入省电离线模式。", qweather_key);
+            if (key != null && key.length > 0) {
+                localStorage["qweather_key"] = key;
+            }
+            else {
+                localStorage["qweather_key"] = "";
+            }
+            weather_key = localStorage["qweather_key"];
+            setWeatherArea();
+        }
+
+        function setWeatherArea() {
+            log("setWeatherArea");
+
+            // offline mode
+            if (weather_key.indexOf("<") >= 0 || weather_key.length == 0) {
+                $("#weatherNowBlock").html("");
+                $("#weatherInfoBlock").text("离线模式，无天气预报。点击此区域设置。");
+                setCalendarArea();
+                return;
+            }
+            else {
+                switchOnline(true);
+            }
             // Current Weather
             $.get(Weather_Realtime_Url + "key=" + weather_key + "&location=" + weather_location + "&lang=" + weather_lang + "&unit" + weather_unit,
                 function (data, status) {
@@ -152,11 +216,70 @@
                         $("#weatherInfoBlock").text("数据: " + JSON.stringify(data) + "\n状态: " + status);
                     }
                 });
-            
-
         }
 
-        //定义positionFooter function 
+        function setPoetryArea() {
+            // Chinese Poetry
+            //var poetrys = (Math.random() < 0.5) ? tangshi300 : songci300;
+            var poetrys = tangshi300;
+            var index = Math.floor(Math.random() * poetrys.length);
+
+            var formatedPoetry = "";
+            poetry = poetrys[index].paragraphs;
+
+            var count = 0;
+
+            // forEach is unsupported by Kindle
+            for (var i = 0; i < poetry.length; i++) {
+                var len = poetry[i].length;
+                if (len == 0) continue; // skip empty line
+                if (len < 20) {
+                    formatedPoetry += poetry[i] + "<br />"
+                    count++;
+                    if (count >= 4) break; // Maximum 4 lines to fit screen size
+                }
+                else { // 超长句子首先尝试用句号断句
+                    var period = poetry[i].indexOf("。");
+                    if (period > 0 && period != poetry[i].length - 1) {
+                        formatedPoetry += trimTitle(poetry[i].substring(0, period)) + "<br />";
+                        formatedPoetry += trimTitle(poetry[i].substring(period + 1)) + "<br />";
+                        count += 2;
+                        if (count >= 4) break; // Maximum 4 lines to fit screen size
+                    }
+                    else { // 否则截断
+                        formatedPoetry += trimTitle(poetry[i]) + "<br />";
+                    }
+                }
+            };
+
+            var poetryContent = trimTitle(poetrys[index].title)
+                + "<br />" + poetrys[index].dynasty
+                + " " + poetrys[index].author
+                + "<br/>" + formatedPoetry;
+
+            $("#poetryBlock").html(poetryContent);
+        }
+
+        function trimTitle(s) {
+            if (s.length > 20) {
+                return s.substring(0, 8) + "..." + s.substring(s.length - 8);
+            }
+            return s;
+        }
+
+        function toggleWeatherArea() {
+            if (weather_key.indexOf("<") >= 0 || weather_key.length == 0) {
+                setWeatherKey();
+                return;
+            }
+            if (!isOnline) {
+                setWeatherArea();
+            } else {
+                setCalendarArea();
+            }
+        }
+
+        //定义positionFooter function
         function positionFooter() {
             var offsetHeight = document.getElementById('container').offsetHeight;
             var screenHeight = screen.height;
@@ -181,42 +304,52 @@
             console.log(new Date() + " " + s);
         }
 
+        function switchOnline(shouldOnline) {
+            isOnline = shouldOnline;
+            if (shouldOnline) {
+                $("#dailyWeatherBlock").html(onlineView);
+            } else {
+                $("#dailyWeatherBlock").html(offlineView);
+            }
+        }
+
+        // workaround for that Kindle web browser doesn't support css visibility:collapse
+        function setOfflineView() {
+            offlineView = '<table id="weekBlock" align="center" cellpadding="10"> \
+                        <tr>\
+                            <td class="weeklyCell">一</td>\
+                            <td class="weeklyCell">二</td>\
+                            <td class="weeklyCell">三</td>\
+                            <td class="weeklyCell">四</td>\
+                            <td class="weeklyCell">五</td>\
+                            <td class="weeklyCell">六</td>\
+                            <td class="weeklyCell">日</td>\
+                        </tr>\
+                        <tr>\
+                            <td class="weeklyCell" id="weekDay1"></td>\
+                            <td class="weeklyCell" id="weekDay2"></td>\
+                            <td class="weeklyCell" id="weekDay3"></td>\
+                            <td class="weeklyCell" id="weekDay4"></td>\
+                            <td class="weeklyCell" id="weekDay5"></td>\
+                            <td class="weeklyCell" id="weekDay6"></td>\
+                            <td class="weeklyCell" id="weekDay7"></td>\
+                        </tr>\
+                        <tr>\
+                            <td class="weeklyCell" id="weekLunarDay1"></td>\
+                            <td class="weeklyCell" id="weekLunarDay2"></td>\
+                            <td class="weeklyCell" id="weekLunarDay3"></td>\
+                            <td class="weeklyCell" id="weekLunarDay4"></td>\
+                            <td class="weeklyCell" id="weekLunarDay5"></td>\
+                            <td class="weeklyCell" id="weekLunarDay6"></td>\
+                            <td class="weeklyCell" id="weekLunarDay7"></td>\
+                        </tr>\
+                    </table>';
+
+        }
     </script>
     <link rel="stylesheet" href="qweather-icons.css">
     <link rel="stylesheet" href="fonts.css">
     <style>
-        /*
-Kindle uses NetFront web browser
-Kindle built-in fonts:
-宋体	STSong	font-family: STSong, serif;
-黑体	STHeiti	font-family: STHeiti, san-serif;
-楷体	STKai	font-family: STKai, serif;
-圆体	STYuan	font-family: STYuan, san-serif;
-Baskerville	Baskerville	font-family: Baskerville, serif;
-Helvetica	Helvetica	font-family: Helvetica, san-serif;
-Palatino	Palatino	font-family: Palatino, serif;
-Futura	Futura	font-family: Futura, serif;
-Caecilia	Caecilia Regular	font-family: "Caecilia Regular", serif;
-Caecilia Condensed	condensed	font-family: condensed, serif;
-Amazon Ember	Amazon Ember	font-family: "Amazon Ember", serif;
-Bookerly	Bookerly	font-family: Bookerly, serif;
-OpenDyslexic	OpenDyslexic	font-family: OpenDyslexic, serif;
-
-Source of fonts:
-chesstype.chesstype.ttf:
-https://www.1001fonts.com/led-fonts.html
-
-FZXiaKTJF.ttf:
-https://www.foundertype.com/index.php/FindFont/index.html?hot=118
-    */
-
-        @font-face {
-            font-family: 'chesstype';
-            src: url('chesstype.chesstype.ttf');
-            font-weight: normal;
-            font-style: normal;
-        }
-
         body {
             text-align: center;
         }
@@ -230,16 +363,28 @@ https://www.foundertype.com/index.php/FindFont/index.html?hot=118
         }
 
         #timeBlock {
-            margin: 10px;
+            margin: 5px;
             font-size: 260px;
             font-family: "chesstype";
+        }
+
+        #poetryBlock {
+            text-align: center;
+            margin: 0 auto;
+            font-size: 52px;
+            font-family: "fzxiaktjf";
         }
 
         #weatherNowBlock {
             font-size: 36px;
         }
-        td {
+
+        .weatherCell {
             font-size: 36px;
+        }
+
+        .weeklyCell {
+            font-size: 32px;
         }
     </style>
 </head>
@@ -248,29 +393,31 @@ https://www.foundertype.com/index.php/FindFont/index.html?hot=118
     <div id="container">
         <div id='dateBlock'></div>
         <div id='chineseDateBlock'></div>
-        <div id='timeBlock'></div>
-        <iframe name='poetryPage' src="poetry.htm" width="900" height="500" frameborder="0">
-        </iframe>
-        <table align="center" cellpadding="10">
-            <tr>
-                <td><div id='date0'>-</div></td>
-                <td><div id='date1'>-</div></td>
-                <td><div id='date2'>-</div></td>
-            </tr>
-            <tr>
-                <td><div id='day0'></div></td>
-                <td><div id='day1'></div></td>
-                <td><div id='day2'></div></td>
-            </tr>
-            <tr>
-                <td><div id='night0'></div></td>
-                <td><div id='night1'></div></td>
-                <td><div id='night2'></div></td>
-            </tr>
-        </table>
-
+        <div id='timeBlock' onclick="toggleWeatherArea()"></div>
+        <hr />
+        <div id='poetryBlock' onclick="setPoetryArea()"></div>
     </div>
-    <div id="footer">
+    <div id="footer" onclick="setWeatherKey()">
+        <hr />
+        <div id="dailyWeatherBlock">
+            <table align="center" cellpadding="10">
+                <tr>
+                    <td class="weatherCell" id='date0'></td>
+                    <td class="weatherCell" id='date1'></td>
+                    <td class="weatherCell" id='date2'></td>
+                </tr>
+                <tr>
+                    <td class="weatherCell" id='day0'></td>
+                    <td class="weatherCell" id='day1'></td>
+                    <td class="weatherCell" id='day2'></td>
+                </tr>
+                <tr>
+                    <td class="weatherCell" id='night0'></td>
+                    <td class="weatherCell" id='night1'></td>
+                    <td class="weatherCell" id='night2'></td>
+                </tr>
+            </table>
+        </div>
         <hr />
         <div id='weatherNowBlock'></div>
         <div id='weatherInfoBlock'></div>
