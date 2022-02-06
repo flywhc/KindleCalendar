@@ -10,12 +10,14 @@
 | No server required. Pure local HTML5 files | 纯HTML5，无须服务器 |
 | Save battery - avoid network traffic if possbile - may work offline if weather is not required. | 省电设计，尽量避免网络连接，甚至可以关闭天气预报以达到离线模式。|
 
+* 注意：本版更新中文件名改成index.html（多了一个l), 配置里的天气服务键由weather_key改名为qweather_key。
+
 ![screenshot](screenshot.jpg)
 
 ## 使用方法
 1. 在https://dev.qweather.com/上注册一个账号并创建一个key。应用名称可以是任意名称。密钥Key的格式应该是这样的：
 **44de7becc22b4e8ca4971595fbab4c7f**。
-1. 编辑**accounts.js**，将**weather_key**的值替换为上一步中的key。
+1. 编辑**accounts.js**，将**qweather_key**的值替换为上一步中的key。
 1. 将 **weather_location** 设置为 qweather的位置代码（可以从 qweather 文档中找到）或天气位置的GPS坐标。
 1. 将 Kindle 连接到 PC 的 USB 端口。
 1. 将**\docs** 下的所有文件复制到**\Calendar** 文件夹中。
@@ -29,17 +31,8 @@ file：///mnt/us/calendar/index.html
 ``
 https://flywhc.github.io/KindleCalendar/ 
 ``
-* 通过禁用天气预报离线模式以更省电：  
-编辑 index.html 并更改  
-``
-var Disable_Weather = false；
-``
-到  
-``
-var Disable_Weather = true;
-``
 
-* 您也可以点击天气预报区域切换离线模式或者重新输入天气服务的key。
+* 您可以点击天气预报区域，点取消按钮切换离线模式以节省耗电，或者重新输入天气服务的key。
 * 还可以点击古诗区域换一首古诗。
 * 也可以点击时间区域切换天气和周历。
 
@@ -47,7 +40,7 @@ var Disable_Weather = true;
 ## Usage
 1. Register an account on https://dev.qweather.com/ and create a key.Application name can be any name. The key format should be like 	
 **44de7becc22b4e8ca4971595fbab4c7f**.
-1. Edit **accounts.js** and replace the value of **weather_key** to the key in the previous step.
+1. Edit **accounts.js** and replace the value of **qweather_key** to the key in the previous step.
 1. Set **weather_location** to a qweather location code (may find it from qweather document) or a GPS coordinate of the location for weather.
 1. Connect Kindle to PC USB port.
 1. Copy all files under **\docs** into **\Calendar** folder.
@@ -61,17 +54,8 @@ file:///mnt/us/calendar/index.html
 ``
 https://flywhc.github.io/KindleCalendar/ 
 ``
-* Offline Mode by Disable weather forecasting for power-saving:
-Edit index.html and change
-``
-var Disable_Weather = false;
-``
-to
-``
-var Disable_Weather = true;
-``
 
-* You may also click on weather area to disable weather or change the QWeather key.
+* You may click on weather area and then click on Cancel to disable weather to save power, or change the QWeather key.
 * Clicking on Poetry area may change a poetry.
 * Clicking on Time area to togge between weather and calendar.
 
