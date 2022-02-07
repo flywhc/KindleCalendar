@@ -20,7 +20,7 @@
 1. 编辑**accounts.js**，将**qweather_key**的值替换为上一步中的key。
 1. 将 **weather_location** 设置为 qweather的位置代码（可以从 qweather 文档中找到）或天气位置的GPS坐标。
 1. 将 Kindle 连接到 PC 的 USB 端口。
-1. 将**\docs** 下的所有文件复制到**\Calendar** 文件夹中。
+1. 将 **\docs** 下的所有文件复制到 **\Calendar** 文件夹中。
 1. 断开 Kindle。
 1. 打开 Kindle 网络浏览器并输入以下 URL：
 ``
