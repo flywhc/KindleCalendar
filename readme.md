@@ -60,6 +60,9 @@ https://flywhc.github.io/KindleCalendar/
 * Clicking on Time area to togge between weather and calendar.
 
 ## Change History
+2022-9-18
+* 修复天气预报日期显示错误
+* 捕获网络错误显示错误提示
 
 2022-2-7: 
 * 修正古诗排版；
