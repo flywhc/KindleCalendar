@@ -35,10 +35,6 @@
         var onlineView;
         var offlineView;
 
-        onerror = function (msg, url, line) {
-            alert("Error url:" + url + ", line:" + line + ", " + msg);
-        }
-
         // event handler when document loaded
         $(document).ready(function () {
             onlineView = $("#dailyWeatherBlock").html();
@@ -193,6 +189,8 @@
                         $("#weatherInfoBlock").text("数据: " + JSON.stringify(data) + "\n状态: " + status);
                     }
                     positionFooter();
+                }).fail(function() {
+                    // ignore failure
                 });
 
             // Daily Weather
@@ -202,8 +200,8 @@
                         for (var i = 0; i < data.daily.length; i++) {
                             dailyData = data.daily[i];
                             var fxDateArray = dailyData.fxDate.split('-');
-                            var fxDate = new Date(fxDateArray[0], fxDateArray[1], fxDateArray[2]);
-                            $("#date" + i).html(fxDate.getMonth() + "月" + fxDate.getDate() + "日" + getDayName(fxDate.getDay()));
+                            var fxDate = new Date(fxDateArray[0], fxDateArray[1]-1, fxDateArray[2]);
+                            $("#date" + i).html((fxDate.getMonth() + 1) + "月" + fxDate.getDate() + "日" + getDayName(fxDate.getDay()));
                             $("#day" + i).html("<i class='qi-" + dailyData.iconDay + "'></i>"
                                 + dailyData.textDay + dailyData.tempMax + "℃"
                             );
@@ -215,6 +213,8 @@
                     else {
                         $("#weatherInfoBlock").text("数据: " + JSON.stringify(data) + "\n状态: " + status);
                     }
+                }).fail(function() {
+                    $("#weatherInfoBlock").text("无法获取天气预报信息，请检查网络连接和account.js QWeather配置。");
                 });
         }
 
